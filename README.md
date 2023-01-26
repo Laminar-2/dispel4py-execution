@@ -13,7 +13,6 @@ cd dispel4py-execution
 ```
 Download the dispel4py.tar file into directory
 ```
-<link to tar file download>
 https://drive.google.com/file/d/1rvgJSkCdiK-yEzmnHsw_RkW8B1dBewa5/view
 ```
 In order to run the application you need to creatre a new Python 3.7 enviroment 
