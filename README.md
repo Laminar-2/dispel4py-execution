@@ -23,6 +23,7 @@ conda activate py37
 ```
 Install dispel4py 
 ```
+tar -zxvf dispel4py.tar
 cd dispel4py
 python setup.py install
 cp ../requirements_d4py.txt
