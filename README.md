@@ -17,6 +17,7 @@ https://drive.google.com/file/d/1rvgJSkCdiK-yEzmnHsw_RkW8B1dBewa5/view
 ```
 In order to run the application you need to creatre a new Python 3.7 enviroment 
 ```
+--note conda must be installed beforehand, go to https://conda.io/projects/conda/en/stable/user-guide/install/linux.html
 conda create --name py37 python=3.7
 conda activate py37
 ```
