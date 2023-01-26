@@ -30,6 +30,10 @@ cp ../requirements_d4py.txt .
 pip install -r requirements_d4py.txt
 cd ..
 ```
+Test dispel4py 
+```
+dispel4py simple dispel4py.examples.graph_testing.word_count -i 10
+```
 Install app modules 
 ```
 pip install requirements_app.txt
