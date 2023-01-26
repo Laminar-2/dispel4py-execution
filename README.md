@@ -26,7 +26,7 @@ Install dispel4py
 tar -zxvf dispel4py.tar
 cd dispel4py
 python setup.py install
-cp ../requirements_d4py.txt
+cp ../requirements_d4py.txt .
 pip install -r requirements_d4py.txt
 cd ..
 ```
