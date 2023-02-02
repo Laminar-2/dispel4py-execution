@@ -36,7 +36,7 @@ dispel4py simple dispel4py.examples.graph_testing.word_count -i 10
 ```
 Install app modules 
 ```
-pip install requirements_app.txt
+pip install -r requirements_app.txt
 ```
 Run application 
 ```
