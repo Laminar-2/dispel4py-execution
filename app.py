@@ -5,7 +5,7 @@ from dispel4py.new.multi_process import process as multi_process
 from dispel4py.new.dynamic_redis import process as dyn_process
 #from dispel4py.new.dynamic_redis_v1 import process as dyn_process
 import codecs
-import shutil
+#import shutil
 import cloudpickle as pickle 
 from flask import Flask, request
 from easydict import EasyDict as edict
