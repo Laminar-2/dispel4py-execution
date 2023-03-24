@@ -9,10 +9,12 @@ import codecs
 import cloudpickle as pickle 
 from flask import Flask, request
 from easydict import EasyDict as edict
+from io import StringIO 
 import re
 import os
 import subprocess 
 import sys
+
 
 def install(package):
     #todo: check if installed before install 
@@ -89,29 +91,31 @@ def run_workflow():
 
     #buffer = StringIO()
     #sys.stdout = buffer 
-
+   
     if process == 1: 
+        print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with simple process")
         simple_process(graph, {producer: unpickled_input_code},args_dict)
         #print_output = buffer.getvalue()
     elif process == 2:
+        print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with multi process")
         multi_process(graph, {producer: unpickled_input_code},args_dict)
         #print_output = buffer.getvalue()
        
     elif process == 3:
+        print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with dynamic process")
-        producer.name='producer'
         dyn_process(graph, {'producer': unpickled_input_code},args_dict) #args as dictionary
         #print_output = buffer.getvalue()
     else: 
         return {"result": "N\A"}, 500
     
-    #sys.stdout = sys.__stdout__
-    print_output = "DONE"
-
+    sys.stdout = sys.__stdout__
+    
     #clear resources directory
     #shutil.rmtree('resources/') 
+    print_output = "DONE"
 
     return {"result": print_output}, 201
     
