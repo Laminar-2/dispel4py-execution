@@ -11,23 +11,18 @@ Then enter directory by
 ```
 cd dispel4py-execution 
 ```
-Download the dispel4py.tar file into directory
-```
-https://drive.google.com/file/d/1rvgJSkCdiK-yEzmnHsw_RkW8B1dBewa5/view
-```
 In order to run the application you need to creatre a new Python 3.7 enviroment 
 ```
 --note conda must be installed beforehand, go to https://conda.io/projects/conda/en/stable/user-guide/install/linux.html
-conda create --name py37 python=3.7
-conda activate py37
+conda create --name py10 python=3.10
+conda activate py10
 ```
 Install dispel4py 
 ```
-tar -zxvf dispel4py.tar
+git clone https://github.com/dispel4py2-0/dispel4py.git
 cd dispel4py
+pip install -r requirements.txt
 python setup.py install
-cp ../requirements_d4py.txt .
-pip install -r requirements_d4py.txt
 cd ..
 ```
 Test dispel4py 
