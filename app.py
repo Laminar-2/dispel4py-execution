@@ -89,25 +89,25 @@ def run_workflow():
     else:
         args_dict = None 
 
-    #buffer = StringIO()
-    #sys.stdout = buffer 
+    buffer = StringIO()
+    sys.stdout = buffer 
    
     if process == 1: 
         print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with simple process")
         simple_process(graph, {producer: unpickled_input_code},args_dict)
-        #print_output = buffer.getvalue()
+        print_output = buffer.getvalue()
     elif process == 2:
         print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with multi process")
         multi_process(graph, {producer: unpickled_input_code},args_dict)
-        #print_output = buffer.getvalue()
+        print_output = buffer.getvalue()
        
     elif process == 3:
         print("Sucessfully logged in: zz46\nSuccessfully executed workflow:")
         print("Executing workflow with dynamic process")
         dyn_process(graph, {'producer': unpickled_input_code},args_dict) #args as dictionary
-        #print_output = buffer.getvalue()
+        print_output = buffer.getvalue()
     else: 
         return {"result": "N\A"}, 500
     
