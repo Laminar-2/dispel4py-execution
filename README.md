@@ -1,4 +1,4 @@
-# Execution Server Instructions
+# Execution Instructions
 
 The following instructions will allow you to run the Flask application which executes dispel4py workflows 
 
