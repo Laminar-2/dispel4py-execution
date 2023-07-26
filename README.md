@@ -11,7 +11,7 @@ Then enter directory by
 ```
 cd dispel4py-execution 
 ```
-In order to run the application you need to creatre a new Python 3.7 enviroment 
+In order to run the application you need to create a new Python 3.10 enviroment 
 ```
 --note conda must be installed beforehand, go to https://conda.io/projects/conda/en/stable/user-guide/install/linux.html
 conda create --name py10 python=3.10
