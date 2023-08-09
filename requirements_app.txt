@@ -1,0 +1,4 @@
+Flask == 2.2.2
+cloudpickle == 2.2.1
+easydict == 1.10
+pigar == 2.0.5
