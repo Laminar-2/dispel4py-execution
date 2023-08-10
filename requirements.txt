@@ -21,7 +21,6 @@ easydict==1.10
 fastjsonschema==2.18.0
 flake8==5.0.4
 flask==2.2.2
-frozenlist==1.4.0
 httpsproxy-urllib2==1.0
 idna==3.4
 ipython==7.34.0
