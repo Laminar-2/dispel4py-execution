@@ -7,7 +7,6 @@ async-timeout==4.0.2
 attrs==23.1.0
 backcall==0.2.0
 black==23.3.0
-ca-certificates==2023.05.30
 cachecontrol==0.12.11
 certifi==2023.7.22
 charset-normalizer==2.1.1
