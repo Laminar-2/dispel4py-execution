@@ -115,7 +115,7 @@ def run_workflow():
     
     #clear resources directory
     #shutil.rmtree('resources/') 
-    print_output = "DONE"
+    print_output += "DONE"
 
     return {"result": print_output}, 201
     
