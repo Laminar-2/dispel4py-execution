@@ -14,6 +14,7 @@ import re
 import os
 import subprocess 
 import sys
+import configparser
 
 
 def install(package):
@@ -53,8 +54,6 @@ def run_workflow():
     workflow_id = data["workflowId"]
     workflow = data["graph"]
     inputCode = data["inputCode"]
-    process = os.environ.get("PROCESS_TYPE", "SIMPLE")
-    args = data["args"]
     resources = data["resources"]
     imports = data["imports"]
 
@@ -74,7 +73,6 @@ def run_workflow():
 
     unpickled_workflow_code  = deserialize(workflow_code)
     unpickled_input_code  = deserialize(inputCode)
-    unpickled_args_code: dict = deserialize(args)
     unpickled_resources_code = deserialize(resources)
 
     #make resources directory 
@@ -84,13 +82,21 @@ def run_workflow():
     nodes = graph.getContainedObjects() #nodes in graph 
     producer = get_first(nodes) # Get first PE in graph
 
-    if unpickled_args_code is not None :
-        args_dict = edict(unpickled_args_code)
-    else:
-        args_dict = None 
-
     buffer = StringIO()
-    sys.stdout = buffer 
+    sys.stdout = buffer
+
+    config = configparser.ConfigParser();
+    config.read('config.ini')
+    process = "SIMPLE"
+    args_dict = None
+    try:
+        process = config['EXECUTION']['Process']
+    except:
+        print("Couldn't read Process from config file - using default SIMPLE")
+    try:
+        args_dict = config['SETTINGS']
+    except:
+        print("Couldn't read Settings from config file - using default None")
     
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
         process = "SIMPLE"
