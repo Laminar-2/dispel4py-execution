@@ -145,7 +145,8 @@ def run_workflow():
         if ("simple" in args_dict):
             args_dict["simple"] = args_dict["simple"] == "True"
     except:
-        print("Couldn't read Settings from config file - using default None")
+        if process != "SIMPLE":
+            print("Couldn't read Settings from config file - using default None")
         args_dict = None
     
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
