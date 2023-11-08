@@ -128,9 +128,6 @@ def run_workflow():
     nodes = graph.getContainedObjects() #nodes in graph 
     producer = get_first(nodes) # Get first PE in graph
 
-    buffer = StringIO()
-    sys.stdout = buffer
-
     config = configparser.ConfigParser();
     config.read('config.ini')
     process = "SIMPLE"
@@ -153,6 +150,9 @@ def run_workflow():
     
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
         process = "SIMPLE"
+
+    buffer = StringIO()
+    sys.stdout = buffer
 
     if process == "SIMPLE": 
         simple_process(graph, {producer: unpickled_input_code},args_dict)
