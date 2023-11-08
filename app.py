@@ -53,7 +53,7 @@ def run_workflow():
     workflow_id = data["workflowId"]
     workflow = data["graph"]
     inputCode = data["inputCode"]
-    process = data["process"]
+    process = os.environ.get("PROCESS_TYPE", "SIMPLE")
     args = data["args"]
     resources = data["resources"]
     imports = data["imports"]
@@ -91,15 +91,18 @@ def run_workflow():
 
     buffer = StringIO()
     sys.stdout = buffer 
-   
-    if process == 1: 
+    
+    if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
+        process = "SIMPLE"
+
+    if process == "SIMPLE": 
         simple_process(graph, {producer: unpickled_input_code},args_dict)
         print_output = buffer.getvalue()
-    elif process == 2:
+    elif process == "MULTI":
         multi_process(graph, {producer: unpickled_input_code},args_dict)
         print_output = buffer.getvalue()
        
-    elif process == 3:
+    elif process == "DYNAMIC":
         dyn_process(graph, {'producer': unpickled_input_code},args_dict) #args as dictionary
         print_output = buffer.getvalue()
     else: 
