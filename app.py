@@ -16,6 +16,50 @@ import subprocess
 import sys
 import configparser
 
+def createConfigFile():
+    config = configparser.ConfigParser()
+    process = ""
+    while process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
+        process = input("Process type [SIMPLE, MULTI, DYNMIC]: ").upper()
+    config['EXECUTION'] = {"Process": process}
+
+    if process == "MULTI":
+        print("Arguments for MULTI configuration")
+        num = input("num: ")
+        iter = input("iter: ")
+        simple = ""
+        while simple not in ["y", "n"]:
+            simple = input("simple [y/n]: ").lower()
+        simple = simple == "y"
+        config["SETTINGS"] = {
+            num: num,
+            iter: iter,
+            simple: simple
+        }
+    
+    if process == "DYNAMIC":
+        print("Arguments for DYNAMIC configuration")
+        num = input("num: ")
+        iter = input("iter: ")
+        simple = ""
+        while simple not in ["y", "n"]:
+            simple = input("simple [y/n]: ").lower()
+        simple = simple == "y"
+        redis_ip = input("redis_ip: ")
+        redis_port = input("redis_port: ")
+        config["SETTINGS"] = {
+            num: num,
+            iter: iter,
+            simple: simple,
+            redis_ip: redis_ip,
+            redis_port: redis_port
+        }
+
+    with open("config.ini", "w") as configfile:
+        config.write(configfile)
+
+if not os.path.exists('./config.ini'):
+    createConfigFile()
 
 def install(package):
     #todo: check if installed before install 
@@ -95,8 +139,15 @@ def run_workflow():
         print("Couldn't read Process from config file - using default SIMPLE")
     try:
         args_dict = config['SETTINGS']
+        if ("num" in args_dict):
+            args_dict["num"] = int(args_dict["num"])
+        if ("iter" in args_dict):
+            args_dict["iter"] = int(args_dict["iter"])
+        if ("simple" in args_dict):
+            args_dict["simple"] = args_dict["simple"] == "True"
     except:
         print("Couldn't read Settings from config file - using default None")
+        args_dict = None
     
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
         process = "SIMPLE"
