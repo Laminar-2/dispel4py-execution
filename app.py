@@ -20,7 +20,7 @@ def createConfigFile():
     config = configparser.ConfigParser()
     process = ""
     while process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
-        process = input("Process type [SIMPLE, MULTI, DYNMIC]: ").upper()
+        process = input("Process type [SIMPLE, MULTI, DYNAMIC]: ").upper()
     config['EXECUTION'] = {"Process": process}
 
     if process == "MULTI":
@@ -56,9 +56,11 @@ def createConfigFile():
         }
 
     with open("config.ini", "w") as configfile:
+        print("Saving configuration details to config.ini")
         config.write(configfile)
 
 if not os.path.exists('./config.ini'):
+    print("Could not find config file - beginning execution engine initialiser")
     createConfigFile()
 
 def install(package):
