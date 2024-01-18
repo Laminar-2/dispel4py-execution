@@ -128,7 +128,7 @@ def run_workflow():
     nodes = graph.getContainedObjects() #nodes in graph 
     producer = get_first(nodes) # Get first PE in graph
 
-    config = configparser.ConfigParser();
+    config = configparser.ConfigParser()
     config.read('config.ini')
     process = "SIMPLE"
     args_dict = None
