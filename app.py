@@ -172,12 +172,10 @@ def run_workflow():
     sys.stdout = sys.__stdout__"""
 
     process_fn = {"SIMPLE": simple_process, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
-    run_process(process_fn, graph, unpickled_input_code, args_dict)
-
     
     #clear resources directory
     #shutil.rmtree('resources/') 
-    print_output += "DONE"
+    #print_output += "DONE"
 
     return run_process(process_fn, graph, unpickled_input_code, args_dict), 201
 
