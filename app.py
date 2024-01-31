@@ -15,7 +15,7 @@ import os
 import subprocess 
 import sys
 import configparser
-import asynchio
+import asyncio
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -184,14 +184,14 @@ def run_process(processor, graph, producer, args_dict):
     generator = run_async_process(processor, graph, producer, args_dict)
     try:
         while True:
-            yield {"result": asynchio.get_running_loop().run_until_complete(generator.__anext())}
+            yield {"result": asyncio.get_running_loop().run_until_complete(generator.__anext())}
     except StopAsyncIteration:
         pass
 
 async def run_async_process(processor, graph, producer, args_dict):
     buffer = StringIO()
     sys.stdout = buffer
-    workflow = asynchio.get_running_loop().create_task(processor(graph, {producer: producer}, args_dict))
+    workflow = asyncio.get_running_loop().create_task(processor(graph, {producer: producer}, args_dict))
     while not workflow.done():
         line = buffer.readline()
         if line:
