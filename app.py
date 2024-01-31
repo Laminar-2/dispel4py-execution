@@ -15,6 +15,7 @@ import os
 import subprocess 
 import sys
 import configparser
+import asynchio
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -128,7 +129,7 @@ def run_workflow():
     nodes = graph.getContainedObjects() #nodes in graph 
     producer = get_first(nodes) # Get first PE in graph
 
-    config = configparser.ConfigParser();
+    config = configparser.ConfigParser()
     config.read('config.ini')
     process = "SIMPLE"
     args_dict = None
@@ -152,7 +153,7 @@ def run_workflow():
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
         process = "SIMPLE"
 
-    buffer = StringIO()
+    """buffer = StringIO()
     sys.stdout = buffer
 
     if process == "SIMPLE": 
@@ -168,14 +169,36 @@ def run_workflow():
     else: 
         return {"result": "N\A"}, 500
     
-    sys.stdout = sys.__stdout__
+    sys.stdout = sys.__stdout__"""
+
+    process_fn = {"SIMPLE": simple_process, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
     
     #clear resources directory
     #shutil.rmtree('resources/') 
-    print_output += "DONE"
+    #print_output += "DONE"
 
-    return {"result": print_output}, 201
-    
+    return run_process(process_fn, graph, unpickled_input_code, args_dict), 201
+
+def run_process(processor, graph, producer, args_dict):
+    # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
+    generator = run_async_process(processor, graph, producer, args_dict)
+    try:
+        while True:
+            yield {"result": asynchio.get_running_loop().run_until_complete(generator.__anext())}
+    except StopAsyncIteration:
+        pass
+
+async def run_async_process(processor, graph, producer, args_dict):
+    buffer = StringIO()
+    sys.stdout = buffer
+    workflow = asynchio.get_running_loop().create_task(processor(graph, {producer: producer}, args_dict))
+    while not workflow.done():
+        line = buffer.readline()
+        if line:
+            yield line
+    for line in buffer.readlines():
+        yield line
+    sys.stdout = sys.__stdout__
 
 def get_first(nodes:list):
 
