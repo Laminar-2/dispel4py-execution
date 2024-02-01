@@ -182,9 +182,10 @@ def run_workflow():
 def run_process(processor, graph, producer, args_dict):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
     generator = run_async_process(processor, graph, producer, args_dict)
+
     try:
         while True:
-            yield {"result": asyncio.get_running_loop().run_until_complete(generator.__anext())}
+            yield {"result": asyncio.new_event_loop().run_until_complete(generator.__anext())}
     except StopAsyncIteration:
         pass
 
