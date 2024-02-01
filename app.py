@@ -193,7 +193,11 @@ def run_process(processor, graph, producer, args_dict):
 async def run_async_process(processor, graph, producer, args_dict):
     buffer = StringIO()
     sys.stdout = buffer
-    workflow = asyncio.get_running_loop().create_task(processor(graph, {producer: producer}, args_dict))
+
+    async def async_processor(processor, graph, producer, args_dict):
+        return processor(graph, {producer: producer}, args_dict)
+
+    workflow = asyncio.get_running_loop().create_task(async_processor(processor, graph, producer, args_dict))
     while not workflow.done():
         line = buffer.readline()
         if line:
