@@ -186,7 +186,9 @@ def run_process(processor, graph, producer, args_dict):
     task = loop.create_task(generator.__anext__())
     try:
         while True:
-            yield {"result": loop.run_until_complete(task)}
+            output = loop.run_until_complete(task)
+            print(output)
+            yield {"result": output}
     except StopAsyncIteration:
         pass
 
