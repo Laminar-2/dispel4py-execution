@@ -238,7 +238,7 @@ async def run_async_process(processor, graph, producer, args_dict):
             if char == '\n':
                 yield "{\"response\": \""+line+"\"}\n"
                 line = ""
-        lines += buffer.read(-1)
+        lines = line + buffer.read(-1)
         for line in lines.split('\n'):
             yield "{\"response\": \""+line+"\"}\n"
     if os.path.exists('file-buffer.tmp'):
