@@ -177,7 +177,6 @@ def run_workflow():
     #clear resources directory
     #shutil.rmtree('resources/') 
     #print_output += "DONE"
-    print("Input:" + str(unpickled_input_code))
     return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict)), mimetype="application/json")
 
 def run_process(processor, graph, producer, producer_name, args_dict):
@@ -189,7 +188,7 @@ def run_process(processor, graph, producer, producer_name, args_dict):
             next_line = generator.__anext__()
             output = asyncio.run(next_line)
 
-            sys.__stdout__.write(output+"\n")
+            sys.__stdout__.write(output)
             sys.__stdout__.flush()
             yield output
     except StopAsyncIteration:
@@ -214,17 +213,17 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
             char = buffer.read(1)
             line += char
             if char == '\n':
-                yield "{\"response\": \""+line+"\"}\n"
+                yield json.dumps({"response": line}) + "\n"
                 line = ""
         lines = line + buffer.read(-1)
         for line in lines.split('\n'):
-            yield "{\"response\": \""+line+"\"}\n"
+            yield json.dumps({"response": line}) + "\n"
     if os.path.exists('file-buffer.tmp'):
         try:
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield "{\"result\": \""+str(workflow.result())+"\"}\n"
+    yield json.dumps({"results": workflow.result()}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
