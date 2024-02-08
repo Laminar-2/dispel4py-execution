@@ -178,11 +178,11 @@ def run_workflow():
     #shutil.rmtree('resources/') 
     #print_output += "DONE"
     print("Input:" + str(unpickled_input_code))
-    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, args_dict)), mimetype="application/json")
+    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict)), mimetype="application/json")
 
-def run_process(processor, graph, producer, args_dict):
+def run_process(processor, graph, producer, producer_name, args_dict):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
-    generator = run_async_process(processor, graph, producer, args_dict)
+    generator = run_async_process(processor, graph, producer, producer_name, args_dict)
 
     try:
         while True:
@@ -195,7 +195,7 @@ def run_process(processor, graph, producer, args_dict):
     except StopAsyncIteration:
         pass
 
-async def run_async_process(processor, graph, producer, args_dict):
+async def run_async_process(processor, graph, producer, producer_name, args_dict):
     async def async_processor(processor, graph, p, args_dict):
         value = None
         with open('file-buffer.tmp', 'w+') as sys.stdout:
@@ -203,7 +203,7 @@ async def run_async_process(processor, graph, producer, args_dict):
         sys.stdout = sys.__stdout__
         return value
     
-    workflow = asyncio.create_task(async_processor(processor, graph, {producer: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
+    workflow = asyncio.create_task(async_processor(processor, graph, {producer_name: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
     while not os.path.exists('file-buffer.tmp'):
         await asyncio.sleep(0)
     with open('file-buffer.tmp', 'r+') as buffer:
