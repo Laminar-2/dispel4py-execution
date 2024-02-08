@@ -227,13 +227,14 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
     yield "{\"result\": \""+str(workflow.result())+"\"}\n"
 
 def get_first(nodes:list):
-
     id_dict = {}
     
-    for x in nodes: 
-        id = int(re.search(r'\d+', getattr(x,'id')).group())  
-        id_dict[id] = x  
+    for x in nodes:
+        if len(x.inputconnections) == 0:
+            return x
+        #id = int(re.search(r'\d+', getattr(x,'id')).group())  
+        #id_dict[id] = x  
 
-    min_id = min(id_dict.keys())    
+    #min_id = min(id_dict.keys())    
         
-    return id_dict[min_id]  
+    #return id_dict[min_id]  
