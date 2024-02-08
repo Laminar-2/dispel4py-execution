@@ -177,45 +177,23 @@ def run_workflow():
     #clear resources directory
     #shutil.rmtree('resources/') 
     #print_output += "DONE"
-
-    values = run_process(process_fn, graph, unpickled_input_code, args_dict)
-    """for value in values:
-      sys.__stdout__.write(value + "\n")
-      sys.__stdout__.flush()"""
-    
+    print("Input:" + str(unpickled_input_code))
     return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, args_dict)), mimetype="application/json")
 
 def run_process(processor, graph, producer, args_dict):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
     generator = run_async_process(processor, graph, producer, args_dict)
-    i = 0
-    # print("Created event loop")
-    async def get_next_line(generator):
-        #sys.__stdout__.write("Getting next line\n")
-        #next = generator.__anext__()
-        # sys.__stdout__.write("Awaitable spawned\n")
-        #value = await next
-        # sys.__stdout__.write("Awaitable answered\n")
-        #return value
-        return await generator()
 
     try:
         while True:
-            # sys.__stdout__.write("Looping task until complete\n")
             next_line = generator.__anext__()
             output = asyncio.run(next_line)
-            # sys.__stdout__.write(output)
-            i += 1
+
             sys.__stdout__.write(output+"\n")
             sys.__stdout__.flush()
             yield output
-            #yield json.dumps({"response": output})
-            #yield s{"result": output}))
     except StopAsyncIteration:
-        #sys.__stdout__.write("Async Iteration Stopped\n")
-        #sys.__stdout__.flush()
         pass
-    # print("Exiting run process")
 
 async def run_async_process(processor, graph, producer, args_dict):
     async def async_processor(processor, graph, p, args_dict):
