@@ -214,17 +214,17 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
             char = buffer.read(1)
             line += char
             if char == '\n':
-                yield "{\"response\": \""+line+"\"}\n"
+                yield str({"response": line}) + "\n"
                 line = ""
         lines = line + buffer.read(-1)
         for line in lines.split('\n'):
-            yield "{\"response\": \""+line+"\"}\n"
+            yield str({"response": line}) + "\n"
     if os.path.exists('file-buffer.tmp'):
         try:
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield "{\"result\": \""+str(workflow.result())+"\"}\n"
+    yield str({"results": workflow.result()}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
