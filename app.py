@@ -208,7 +208,7 @@ def run_process(processor, graph, producer, args_dict):
             i += 1
             sys.__stdout__.write(output+"\n")
             sys.__stdout__.flush()
-            yield "{\"response\": \""+output+"\"}\n"
+            yield output
             #yield json.dumps({"response": output})
             #yield s{"result": output}))
     except StopAsyncIteration:
@@ -218,43 +218,35 @@ def run_process(processor, graph, producer, args_dict):
     # print("Exiting run process")
 
 async def run_async_process(processor, graph, producer, args_dict):
-    #sys.__stdout__.write("Entered new function\n")
-    #sys.__stdout__.write("Buffer created\n")
-    #sys.stdout = buffer
-    #sys.__stdout__.write("Buffer redirected\n")
-
     async def async_processor(processor, graph, p, args_dict):
         value = None
         with open('file-buffer.tmp', 'w+') as sys.stdout:
             value = processor(graph, p, args_dict)
         sys.stdout = sys.__stdout__
         return value
-    yield "Zeroth line"
-    # processor(graph, {producer: producer}, args_dict)
+    
     workflow = asyncio.create_task(async_processor(processor, graph, {producer: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
-    # sys.__stdout__.write("Task created\n")
     while not os.path.exists('file-buffer.tmp'):
         await asyncio.sleep(0)
     with open('file-buffer.tmp', 'r+') as buffer:
+        line = ""
         while not workflow.done():
             await asyncio.sleep(0)
-            # sys.__stdout__.write("Getting line\n")
             buffer.flush()
-            line = buffer.readline()
-            # sys.__stdout__.write(f"Line {line}\n")
-            if line:
-                #sys.__stdout__.write(f"Got a line {line}\n")
-                yield line
-        lines = buffer.readlines()
-        for line in lines:
-            #sys.__stdout__.write(f"Got a line {line}\n")
-            yield line
+            char = buffer.read(1)
+            line += char
+            if char == '\n':
+                yield "{\"response\": \""+line+"\"}\n"
+                line = ""
+        lines += buffer.read(-1)
+        for line in lines.split('\n'):
+            yield "{\"response\": \""+line+"\"}\n"
     if os.path.exists('file-buffer.tmp'):
         try:
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield str(workflow.result())
+    yield "{\"result\": \""+str(workflow.result())+"\"}\n"
 
 def get_first(nodes:list):
 
