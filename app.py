@@ -7,7 +7,7 @@ from dispel4py.new.dynamic_redis import process as dyn_process
 import codecs
 #import shutil
 import cloudpickle as pickle 
-from flask import Flask, request, Response, stream_with_context
+from flask import Flask, request, Response, stream_with_context, jsonify
 from easydict import EasyDict as edict
 from io import StringIO 
 import re
@@ -16,6 +16,7 @@ import subprocess
 import sys
 import configparser
 import asyncio
+import json
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -171,68 +172,89 @@ def run_workflow():
     
     sys.stdout = sys.__stdout__"""
 
-    process_fn = {"SIMPLE": simple_process, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
+    process_fn = {"SIMPLE": simple_process_return, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
     
     #clear resources directory
     #shutil.rmtree('resources/') 
     #print_output += "DONE"
 
-    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, args_dict)))
+    values = run_process(process_fn, graph, unpickled_input_code, args_dict)
+    """for value in values:
+      sys.__stdout__.write(value + "\n")
+      sys.__stdout__.flush()"""
+    
+    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, args_dict)), mimetype="application/json")
 
 def run_process(processor, graph, producer, args_dict):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
     generator = run_async_process(processor, graph, producer, args_dict)
-    print("Created event loop")
+    i = 0
+    # print("Created event loop")
     async def get_next_line(generator):
-        sys.__stdout__.write("Getting next line\n")
-        next = generator.__anext__()
-        sys.__stdout__.write("Awaitable spawned\n")
-        value = await next
-        sys.__stdout__.write("Awaitable answered\n")
-        return value
+        #sys.__stdout__.write("Getting next line\n")
+        #next = generator.__anext__()
+        # sys.__stdout__.write("Awaitable spawned\n")
+        #value = await next
+        # sys.__stdout__.write("Awaitable answered\n")
+        #return value
+        return await generator()
+
     try:
         while True:
-            sys.__stdout__.write("Looping task until complete\n")
-            next_line = get_next_line(generator)
+            # sys.__stdout__.write("Looping task until complete\n")
+            next_line = generator.__anext__()
             output = asyncio.run(next_line)
-            sys.__stdout__.write(output)
-            yield "{\"result\": " + output + "}"
+            # sys.__stdout__.write(output)
+            i += 1
+            sys.__stdout__.write(output+"\n")
+            sys.__stdout__.flush()
+            yield "{\"response\": \""+output+"\"}\n"
+            #yield json.dumps({"response": output})
+            #yield s{"result": output}))
     except StopAsyncIteration:
+        #sys.__stdout__.write("Async Iteration Stopped\n")
+        #sys.__stdout__.flush()
         pass
-    print("Exiting run process")
+    # print("Exiting run process")
 
 async def run_async_process(processor, graph, producer, args_dict):
-    sys.__stdout__.write("Entered new function\n")
-    buffer = StringIO()
-    sys.__stdout__.write("Buffer created\n")
-    sys.stdout = buffer
-    sys.__stdout__.write("Buffer redirected\n")
+    #sys.__stdout__.write("Entered new function\n")
+    #sys.__stdout__.write("Buffer created\n")
+    #sys.stdout = buffer
+    #sys.__stdout__.write("Buffer redirected\n")
 
-    def then_done(processor, graph, p, args_dict):
-        processor(graph, p, args_dict)
-        sys.__stdout__.write("I'm done\n")
-        return "I'm done"
-
-    processor(graph, {producer: producer}, args_dict)
-    workflow = asyncio.create_task(asyncio.to_thread(then_done, processor, graph, {producer: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
-    sys.__stdout__.write("Task created\n")
-    yield "First line"
-    yield "Second line"
-    yield "Third line"
-    while not workflow.done():
+    async def async_processor(processor, graph, p, args_dict):
+        value = None
+        with open('file-buffer.tmp', 'w+') as sys.stdout:
+            value = processor(graph, p, args_dict)
+        sys.stdout = sys.__stdout__
+        return value
+    yield "Zeroth line"
+    # processor(graph, {producer: producer}, args_dict)
+    workflow = asyncio.create_task(async_processor(processor, graph, {producer: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
+    # sys.__stdout__.write("Task created\n")
+    while not os.path.exists('file-buffer.tmp'):
         await asyncio.sleep(0)
-        # sys.__stdout__.write("Getting line\n")
-        buffer.flush()
-        line = buffer.readline()
-        # sys.__stdout__.write(f"Line {line}\n")
-        if line:
-            sys.__stdout__.write(f"Got a line {line}\n")
+    with open('file-buffer.tmp', 'r+') as buffer:
+        while not workflow.done():
+            await asyncio.sleep(0)
+            # sys.__stdout__.write("Getting line\n")
+            buffer.flush()
+            line = buffer.readline()
+            # sys.__stdout__.write(f"Line {line}\n")
+            if line:
+                #sys.__stdout__.write(f"Got a line {line}\n")
+                yield line
+        lines = buffer.readlines()
+        for line in lines:
+            #sys.__stdout__.write(f"Got a line {line}\n")
             yield line
-    lines = buffer.readlines()
-    for line in lines:
-        sys.__stdout__.write(f"Got a line {line}\n")
-        yield line
-    sys.stdout = sys.__stdout__
+    if os.path.exists('file-buffer.tmp'):
+        try:
+            os.remove('file-buffer.tmp')
+        except:
+            pass
+    yield str(workflow.result())
 
 def get_first(nodes:list):
 
