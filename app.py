@@ -217,13 +217,13 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
                 line = ""
         lines = line + buffer.read(-1)
         for line in lines.split('\n'):
-            yield json.dumps({"response": line}) + "\n"
+            yield "{\"response\": \""+line+"\"}\n"
     if os.path.exists('file-buffer.tmp'):
         try:
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield json.dumps({"results": workflow.result()}) + "\n"
+    yield "{\"result\": \""+str(workflow.result())+"\"}\n"
 
 def get_first(nodes:list):
     id_dict = {}
