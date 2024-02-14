@@ -223,7 +223,7 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield json.dumps({"result": line}) + "\n"
+    yield json.dumps({"result": workflow.result()}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
