@@ -127,7 +127,7 @@ def run_workflow():
     deserialize_directory(unpickled_resources_code,"resources/")
 
     graph: WorkflowGraph = unpickled_workflow_code #Code execution 
-    nodes = graph.getContainedObjects() #nodes in graph 
+    nodes = graph.get_contained_objects() #nodes in graph 
     producer = get_first(nodes) # Get first PE in graph
 
     config = configparser.ConfigParser()
@@ -217,13 +217,13 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
                 line = ""
         lines = line + buffer.read(-1)
         for line in lines.split('\n'):
-            yield "{\"response\": \""+line+"\"}\n"
+            yield json.dumps({"response": line}) + "\n"
     if os.path.exists('file-buffer.tmp'):
         try:
             os.remove('file-buffer.tmp')
         except:
             pass
-    yield "{\"result\": \""+str(workflow.result())+"\"}\n"
+    yield json.dumps({"result": line}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
