@@ -7,7 +7,7 @@ from dispel4py.new.dynamic_redis import process as dyn_process
 import codecs
 #import shutil
 import cloudpickle as pickle 
-from flask import Flask, request, Response, stream_with_context, jsonify
+from flask import Flask, request, Response, stream_with_context, jsonify, send_from_directory
 from easydict import EasyDict as edict
 from io import StringIO 
 from waitress import serve
@@ -16,7 +16,6 @@ import os
 import subprocess 
 import sys
 import configparser
-import asyncio
 import json
 import pathlib
 from multiprocessing import Process, Lock, SimpleQueue
@@ -172,9 +171,6 @@ def run_workflow():
 
     process_fn = {"SIMPLE": simple_process_return, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
     
-    #clear resources directory
-    #shutil.rmtree('resources/') 
-    #print_output += "DONE"
     return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
 
 def acquire_resources(resources: list[str], user: str):
@@ -212,7 +208,8 @@ def get_process_output(processor, graph, producer, producer_name, args_dict, use
 
     def process_func(processor, graph, p, args_dict, user, q:SimpleQueue):
         buffer = IOToQueue(q)
-        pathlib.Path(user).mkdir(parents=True, exist_ok=True)
+        pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
+        os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
         try:
             output = processor(graph, p, args_dict)
