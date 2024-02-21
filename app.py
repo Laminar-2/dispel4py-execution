@@ -10,6 +10,7 @@ import cloudpickle as pickle
 from flask import Flask, request, Response, stream_with_context, jsonify
 from easydict import EasyDict as edict
 from io import StringIO 
+from waitress import serve
 import re
 import os
 import subprocess 
@@ -17,6 +18,8 @@ import sys
 import configparser
 import asyncio
 import json
+import pathlib
+from threading import Thread
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -95,13 +98,15 @@ def deserialize(data):
 app = Flask(__name__)
 @app.route('/resource', methods=['PUT'])
 def acquire_resource():
-    data = request.json()
-
-    user = data["user"]
+    print("Acquiring resources")
+    user = request.form["user"]
+    #data = request.json()
+    pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
     for file in request.files.getlist("files"):
+        with open(os.path.join("cache", user, file.filename), "w+") as f:
+            pass
         file.save(os.path.join("cache", user, file.filename))
-    return 200
-        
+    return "Success"
 
 @app.route('/run', methods=['GET', 'POST'])
 def run_workflow():
@@ -179,8 +184,10 @@ def acquire_resources(resources: list[str], user: str):
 
 def check_resources(resources: list[str], user: str):
     for resource in resources:
+        print("Looking for " + resource)
         while not os.path.exists(os.path.join("cache", user, resource)):
             pass
+        print("Found " + resource)
 
 def run_process(processor, graph, producer, producer_name, args_dict, resources, user):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
@@ -189,10 +196,12 @@ def run_process(processor, graph, producer, producer_name, args_dict, resources,
     required_resources = []
     for resource_request in acquire_resources(resources, user):
          required_resources.append(resource_request)
-    yield json.dumps({"resources": required_resources}) + "\n"
-
+    if len(required_resources) > 0:
+        yield json.dumps({"resources": required_resources}) + "\n"
+    
+    print("Waiting for resources")
     check_resources(resources, user) # waits for resources to arrive
-
+    print("Acquired resources")
     try:
         while True:
             next_line = generator.__anext__()
@@ -204,36 +213,48 @@ def run_process(processor, graph, producer, producer_name, args_dict, resources,
     except StopAsyncIteration:
         pass
 
-async def run_async_process(processor, graph, producer, producer_name, args_dict, user):
-    async def async_processor(processor, graph, p, args_dict, user):
+def run_async_process(processor, graph, producer, producer_name, args_dict, user):
+    def async_processor(processor, graph, p, args_dict, user):
+        sys.__stdout__.write("Starting process\n")
         value = None
+        pathlib.Path(user).mkdir(parents=True, exist_ok=True)
+
         with open(os.path.join(user, 'file-buffer.tmp'), 'w+') as sys.stdout:
             value = processor(graph, p, args_dict)
         sys.stdout = sys.__stdout__
         return value
     
-    workflow = asyncio.create_task(async_processor(processor, graph, {producer_name: producer}, args_dict, user)) #async_processor(processor, graph, producer, args_dict))
-    while not os.path.exists(os.path.join(user, 'file-buffer.tmp')):
+    workflow = asyncio.create_task(asyncio.to_thread(async_processor(processor, graph, {producer_name: producer}, args_dict, user)))
+    while not workflow.done() and not os.path.exists(os.path.join(user, 'file-buffer.tmp')):
         await asyncio.sleep(0)
-    with open(os.path.join(user, 'file-buffer.tmp'), 'r+') as buffer:
-        line = ""
-        while not workflow.done():
-            await asyncio.sleep(0)
-            buffer.flush()
-            char = buffer.read(1)
-            line += char
-            if char == '\n':
+    try:
+        with open(os.path.join(user, 'file-buffer.tmp'), 'r+') as buffer:
+            line = ""
+            while not workflow.done():
+                await asyncio.sleep(0)
+                buffer.flush()
+                char = buffer.read(1)
+                line += char
+                if char == '\n':
+                    yield json.dumps({"response": line}) + "\n"
+                    line = ""
+            lines = line + buffer.read(-1)
+            for line in lines.split('\n'):
                 yield json.dumps({"response": line}) + "\n"
-                line = ""
-        lines = line + buffer.read(-1)
-        for line in lines.split('\n'):
-            yield json.dumps({"response": line}) + "\n"
+    except:
+        sys.__stdout__.write("Failed to read from buffer")
     if os.path.exists(os.path.join(user, 'file-buffer.tmp')):
         try:
             os.remove(os.path.join(user, 'file-buffer.tmp'))
         except:
             pass
-    yield json.dumps({"result": workflow.result()}) + "\n"
+    try:
+        result = workflow.result()
+        yield json.dumps({"result": result}) + "\n"
+    except Exception as e:
+        sys.stdout = sys.__stdout__
+        yield json.dumps({"error": str(e)}) + "\n"
+        raise e
 
 def get_first(nodes:list):
     id_dict = {}
@@ -247,3 +268,9 @@ def get_first(nodes:list):
     #min_id = min(id_dict.keys())    
         
     #return id_dict[min_id]  
+
+def main():
+    serve(app, host='localhost', port='5000')
+
+if __name__ == '__main__':
+    main()
