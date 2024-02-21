@@ -211,15 +211,12 @@ def get_process_output(processor, graph, producer, producer_name, args_dict, use
     q = SimpleQueue()
 
     def process_func(processor, graph, p, args_dict, user, q:SimpleQueue):
-        sys.__stdout__.write("Started process\n")
         buffer = IOToQueue(q)
-        sys.__stdout__.write("Acquired lock for process\n")
         pathlib.Path(user).mkdir(parents=True, exist_ok=True)
         sys.stdout = buffer
         try:
             output = processor(graph, p, args_dict)
             q.put({"result": output})
-            sys.__stdout__.write("Process has finished successfully")
         except Exception as e:
             q.put({"error": str(e)})
         finally:
@@ -240,8 +237,8 @@ class IOToQueue(StringIO):
         self.queue = queue
 
     def write(self, __s: str) -> int:
-        self.queue.put({"response": str})
-        return len(str)
+        self.queue.put({"response": __s})
+        return len(__s)
     
     def read(self, __size: int | None = ...) -> str:
         return self.queue.get()
