@@ -93,6 +93,16 @@ def deserialize(data):
     return pickle.loads(codecs.decode(data.encode(), "base64"))
 
 app = Flask(__name__)
+@app.route('/resource', methods=['PUT'])
+def acquire_resource():
+    data = request.json()
+
+    user = data["user"]
+    for file in request.files.getlist("files"):
+        file.save(os.path.join("cache", user, file.filename))
+    return 200
+        
+
 @app.route('/run', methods=['GET', 'POST'])
 def run_workflow():
     print("Starting workflow")
@@ -104,6 +114,7 @@ def run_workflow():
     inputCode = data["inputCode"]
     resources = data["resources"]
     imports = data["imports"]
+    user = data["user"]
 
     import_list = list(filter(None, imports.split(',')))
     
@@ -121,10 +132,10 @@ def run_workflow():
 
     unpickled_workflow_code  = deserialize(workflow_code)
     unpickled_input_code  = deserialize(inputCode)
-    unpickled_resources_code = deserialize(resources)
+    #unpickled_resources_code = deserialize(resources)
 
     #make resources directory 
-    deserialize_directory(unpickled_resources_code,"resources/")
+    #deserialize_directory(unpickled_resources_code,"resources/")
 
     graph: WorkflowGraph = unpickled_workflow_code #Code execution 
     nodes = graph.get_contained_objects() #nodes in graph 
@@ -154,34 +165,33 @@ def run_workflow():
     if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
         process = "SIMPLE"
 
-    """buffer = StringIO()
-    sys.stdout = buffer
-
-    if process == "SIMPLE": 
-        simple_process(graph, {producer: unpickled_input_code},args_dict)
-        print_output = buffer.getvalue()
-    elif process == "MULTI":
-        multi_process(graph, {producer: unpickled_input_code},args_dict)
-        print_output = buffer.getvalue()
-       
-    elif process == "DYNAMIC":
-        dyn_process(graph, {'producer': unpickled_input_code},args_dict) #args as dictionary
-        print_output = buffer.getvalue()
-    else: 
-        return {"result": "N\A"}, 500
-    
-    sys.stdout = sys.__stdout__"""
-
     process_fn = {"SIMPLE": simple_process_return, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
     
     #clear resources directory
     #shutil.rmtree('resources/') 
     #print_output += "DONE"
-    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict)), mimetype="application/json")
+    return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
 
-def run_process(processor, graph, producer, producer_name, args_dict):
+def acquire_resources(resources: list[str], user: str):
+    for resource in resources:
+        if not os.path.exists(os.path.join("cache", user, resource)):
+            yield 
+
+def check_resources(resources: list[str], user: str):
+    for resource in resources:
+        while not os.path.exists(os.path.join("cache", user, resource)):
+            pass
+
+def run_process(processor, graph, producer, producer_name, args_dict, resources, user):
     # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
-    generator = run_async_process(processor, graph, producer, producer_name, args_dict)
+    generator = run_async_process(processor, graph, producer, producer_name, args_dict, user)
+
+    required_resources = []
+    for resource_request in acquire_resources(resources, user):
+         required_resources.append(resource_request)
+    yield json.dumps({"resources": required_resources}) + "\n"
+
+    check_resources(resources, user) # waits for resources to arrive
 
     try:
         while True:
@@ -194,18 +204,18 @@ def run_process(processor, graph, producer, producer_name, args_dict):
     except StopAsyncIteration:
         pass
 
-async def run_async_process(processor, graph, producer, producer_name, args_dict):
-    async def async_processor(processor, graph, p, args_dict):
+async def run_async_process(processor, graph, producer, producer_name, args_dict, user):
+    async def async_processor(processor, graph, p, args_dict, user):
         value = None
-        with open('file-buffer.tmp', 'w+') as sys.stdout:
+        with open(os.path.join(user, 'file-buffer.tmp'), 'w+') as sys.stdout:
             value = processor(graph, p, args_dict)
         sys.stdout = sys.__stdout__
         return value
     
-    workflow = asyncio.create_task(async_processor(processor, graph, {producer_name: producer}, args_dict)) #async_processor(processor, graph, producer, args_dict))
-    while not os.path.exists('file-buffer.tmp'):
+    workflow = asyncio.create_task(async_processor(processor, graph, {producer_name: producer}, args_dict, user)) #async_processor(processor, graph, producer, args_dict))
+    while not os.path.exists(os.path.join(user, 'file-buffer.tmp')):
         await asyncio.sleep(0)
-    with open('file-buffer.tmp', 'r+') as buffer:
+    with open(os.path.join(user, 'file-buffer.tmp'), 'r+') as buffer:
         line = ""
         while not workflow.done():
             await asyncio.sleep(0)
@@ -218,9 +228,9 @@ async def run_async_process(processor, graph, producer, producer_name, args_dict
         lines = line + buffer.read(-1)
         for line in lines.split('\n'):
             yield json.dumps({"response": line}) + "\n"
-    if os.path.exists('file-buffer.tmp'):
+    if os.path.exists(os.path.join(user, 'file-buffer.tmp')):
         try:
-            os.remove('file-buffer.tmp')
+            os.remove(os.path.join(user, 'file-buffer.tmp'))
         except:
             pass
     yield json.dumps({"result": workflow.result()}) + "\n"
