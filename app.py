@@ -208,56 +208,43 @@ def run_process(processor, graph, producer, producer_name, args_dict, resources,
         yield output
 
 def get_process_output(processor, graph, producer, producer_name, args_dict, user):
-    completed = Lock()
-    q = new SimpleQueue()
-    file_path = os.path.join(user, "temp-file.tmp")
+    q = SimpleQueue()
 
-    def process_func(processor, graph, p, args_dict, user, q):
+    def process_func(processor, graph, p, args_dict, user, q:SimpleQueue):
         sys.__stdout__.write("Started process\n")
-        with open(file_path, 'w+') as buffer:
-            sys.__stdout__.write("Acquired lock for process\n")
-            pathlib.Path(user).mkdir(parents=True, exist_ok=True)
-            sys.stdout = buffer
-            try:
-                returns["output"] = processor(graph, p, args_dict)
-                sys.__stdout__.write("Process has finished successfully")
-            except Exception as e:
-                returns["error"] = str(e)
-            finally:
-                sys.stdout = sys.__stdout__
+        buffer = IOToQueue(q)
+        sys.__stdout__.write("Acquired lock for process\n")
+        pathlib.Path(user).mkdir(parents=True, exist_ok=True)
+        sys.stdout = buffer
+        try:
+            output = processor(graph, p, args_dict)
+            q.put({"result": output})
+            sys.__stdout__.write("Process has finished successfully")
+        except Exception as e:
+            q.put({"error": str(e)})
+        finally:
+            q.put("END")
+            sys.stdout = sys.__stdout__
+
+    Process(target=process_func, args=(processor, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
     
-    #async_processor(processor, graph, {producer_name: producer}, args_dict, user)
+    while True:
+        output:dict = q.get()
+        if output == "END":
+            break
+        yield json.dumps(output) + "\n"
 
-    process_thread = Process(target=thread_func, args=(processor, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
+class IOToQueue(StringIO):
+    def __init__(self, queue:SimpleQueue):
+        super()
+        self.queue = queue
 
-    while not completed.locked(): # wait until thread picks up lock
-        pass
+    def write(self, __s: str) -> int:
+        self.queue.put({"response": str})
+        return len(str)
     
-    sys.__stdout__.write("Main thread has noticed lock acquisition\n")
-    
-    with open(file_path, "r+") as buffer:
-        line = ""
-        while completed.locked():
-            buffer.flush()
-            char = buffer.read(1)
-            line += char
-            if char == '\n':
-                yield json.dumps({"response": line}) + "\n"
-                line = ""
-
-        sys.__stdout__.write("Main thread has noticed thread has given up lock\n")
-
-        with completed:
-            lines = line + buffer.read(-1)
-            for line in lines.split('\n'):
-                yield json.dumps({"response": line}) + "\n"
-
-            if returns.get("output", None) is not None:
-                yield json.dumps({"result": returns.get("output", None)}) + "\n"
-            elif returns.get("error", None) is not None:
-                yield json.dumps({"error": returns.get("error", None)}) + "\n"
-            else:
-                yield json.dumps({"result": None}) + "\n"
+    def read(self, __size: int | None = ...) -> str:
+        return self.queue.get()
 
 def get_first(nodes:list):
     id_dict = {}
