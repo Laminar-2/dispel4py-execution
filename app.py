@@ -19,7 +19,7 @@ import configparser
 import asyncio
 import json
 import pathlib
-from threading import Thread, Lock
+from multiprocessing import Process, Lock, SimpleQueue
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -208,16 +208,19 @@ def run_process(processor, graph, producer, producer_name, args_dict, resources,
         yield output
 
 def get_process_output(processor, graph, producer, producer_name, args_dict, user):
-    buffer = StringIO()
     completed = Lock()
-    returns = {}
+    q = new SimpleQueue()
+    file_path = os.path.join(user, "temp-file.tmp")
 
-    def thread_func(processor, graph, p, args_dict, user):
-        with completed:
+    def process_func(processor, graph, p, args_dict, user, q):
+        sys.__stdout__.write("Started process\n")
+        with open(file_path, 'w+') as buffer:
+            sys.__stdout__.write("Acquired lock for process\n")
             pathlib.Path(user).mkdir(parents=True, exist_ok=True)
             sys.stdout = buffer
             try:
                 returns["output"] = processor(graph, p, args_dict)
+                sys.__stdout__.write("Process has finished successfully")
             except Exception as e:
                 returns["error"] = str(e)
             finally:
@@ -225,31 +228,36 @@ def get_process_output(processor, graph, producer, producer_name, args_dict, use
     
     #async_processor(processor, graph, {producer_name: producer}, args_dict, user)
 
-    process_thread = Thread(target=thread_func, args=(processor, graph, {producer_name: producer}, args_dict, user), daemon=True).start()
+    process_thread = Process(target=thread_func, args=(processor, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
 
     while not completed.locked(): # wait until thread picks up lock
         pass
+    
+    sys.__stdout__.write("Main thread has noticed lock acquisition\n")
+    
+    with open(file_path, "r+") as buffer:
+        line = ""
+        while completed.locked():
+            buffer.flush()
+            char = buffer.read(1)
+            line += char
+            if char == '\n':
+                yield json.dumps({"response": line}) + "\n"
+                line = ""
 
-    line = ""
-    while completed.locked():
-        buffer.flush()
-        char = buffer.read(1)
-        line += char
-        if char == '\n':
-            yield json.dumps({"response": line}) + "\n"
-            line = ""
+        sys.__stdout__.write("Main thread has noticed thread has given up lock\n")
 
-    with completed:
-        lines = line + buffer.read(-1)
-        for line in lines.split('\n'):
-            yield json.dumps({"response": line}) + "\n"
+        with completed:
+            lines = line + buffer.read(-1)
+            for line in lines.split('\n'):
+                yield json.dumps({"response": line}) + "\n"
 
-        if returns.get("output", None) is not None:
-            yield json.dumps({"result": returns.get("output", None)}) + "\n"
-        elif returns.get("error", None) is not None:
-            yield json.dumps({"error": returns.get("error", None)}) + "\n"
-        else:
-            yield json.dumps({"result": None}) + "\n"
+            if returns.get("output", None) is not None:
+                yield json.dumps({"result": returns.get("output", None)}) + "\n"
+            elif returns.get("error", None) is not None:
+                yield json.dumps({"error": returns.get("error", None)}) + "\n"
+            else:
+                yield json.dumps({"result": None}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
