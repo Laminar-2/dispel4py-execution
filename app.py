@@ -19,7 +19,7 @@ import configparser
 import asyncio
 import json
 import pathlib
-from threading import Thread
+from threading import Thread, Lock
 
 def createConfigFile():
     config = configparser.ConfigParser()
@@ -190,71 +190,66 @@ def check_resources(resources: list[str], user: str):
         print("Found " + resource)
 
 def run_process(processor, graph, producer, producer_name, args_dict, resources, user):
-    # Major credit to https://stackoverflow.com/a/71581122 for this async to sync generator converter idea
-    generator = run_async_process(processor, graph, producer, producer_name, args_dict, user)
-
+    # First find what resources we don't have
     required_resources = []
     for resource_request in acquire_resources(resources, user):
          required_resources.append(resource_request)
     if len(required_resources) > 0:
         yield json.dumps({"resources": required_resources}) + "\n"
     
+    # Then wait for all resources to arrive
     print("Waiting for resources")
     check_resources(resources, user) # waits for resources to arrive
     print("Acquired resources")
-    try:
-        while True:
-            next_line = generator.__anext__()
-            output = asyncio.run(next_line)
 
-            sys.__stdout__.write(output)
-            sys.__stdout__.flush()
-            yield output
-    except StopAsyncIteration:
+    for output in get_process_output(processor, graph, producer, producer_name, args_dict, user):
+        sys.__stdout__.write(output)
+        sys.__stdout__.flush()
+        yield output
+
+def get_process_output(processor, graph, producer, producer_name, args_dict, user):
+    buffer = StringIO()
+    completed = Lock()
+    returns = {}
+
+    def thread_func(processor, graph, p, args_dict, user):
+        with completed:
+            pathlib.Path(user).mkdir(parents=True, exist_ok=True)
+            sys.stdout = buffer
+            try:
+                returns["output"] = processor(graph, p, args_dict)
+            except Exception as e:
+                returns["error"] = str(e)
+            finally:
+                sys.stdout = sys.__stdout__
+    
+    #async_processor(processor, graph, {producer_name: producer}, args_dict, user)
+
+    process_thread = Thread(target=thread_func, args=(processor, graph, {producer_name: producer}, args_dict, user), daemon=True).start()
+
+    while not completed.locked(): # wait until thread picks up lock
         pass
 
-def run_async_process(processor, graph, producer, producer_name, args_dict, user):
-    def async_processor(processor, graph, p, args_dict, user):
-        sys.__stdout__.write("Starting process\n")
-        value = None
-        pathlib.Path(user).mkdir(parents=True, exist_ok=True)
-
-        with open(os.path.join(user, 'file-buffer.tmp'), 'w+') as sys.stdout:
-            value = processor(graph, p, args_dict)
-        sys.stdout = sys.__stdout__
-        return value
-    
-    workflow = asyncio.create_task(asyncio.to_thread(async_processor(processor, graph, {producer_name: producer}, args_dict, user)))
-    while not workflow.done() and not os.path.exists(os.path.join(user, 'file-buffer.tmp')):
-        await asyncio.sleep(0)
-    try:
-        with open(os.path.join(user, 'file-buffer.tmp'), 'r+') as buffer:
+    line = ""
+    while completed.locked():
+        buffer.flush()
+        char = buffer.read(1)
+        line += char
+        if char == '\n':
+            yield json.dumps({"response": line}) + "\n"
             line = ""
-            while not workflow.done():
-                await asyncio.sleep(0)
-                buffer.flush()
-                char = buffer.read(1)
-                line += char
-                if char == '\n':
-                    yield json.dumps({"response": line}) + "\n"
-                    line = ""
-            lines = line + buffer.read(-1)
-            for line in lines.split('\n'):
-                yield json.dumps({"response": line}) + "\n"
-    except:
-        sys.__stdout__.write("Failed to read from buffer")
-    if os.path.exists(os.path.join(user, 'file-buffer.tmp')):
-        try:
-            os.remove(os.path.join(user, 'file-buffer.tmp'))
-        except:
-            pass
-    try:
-        result = workflow.result()
-        yield json.dumps({"result": result}) + "\n"
-    except Exception as e:
-        sys.stdout = sys.__stdout__
-        yield json.dumps({"error": str(e)}) + "\n"
-        raise e
+
+    with completed:
+        lines = line + buffer.read(-1)
+        for line in lines.split('\n'):
+            yield json.dumps({"response": line}) + "\n"
+
+        if returns.get("output", None) is not None:
+            yield json.dumps({"result": returns.get("output", None)}) + "\n"
+        elif returns.get("error", None) is not None:
+            yield json.dumps({"error": returns.get("error", None)}) + "\n"
+        else:
+            yield json.dumps({"result": None}) + "\n"
 
 def get_first(nodes:list):
     id_dict = {}
