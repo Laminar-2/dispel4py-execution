@@ -200,7 +200,7 @@ def get_process_output(processor_type, graph, producer, producer_name, args_dict
         pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
         os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
-        
+
         try:
             if processor_type == 1:
                 output = simple_process_return(graph, p)
@@ -224,7 +224,7 @@ def get_process_output(processor_type, graph, producer, producer_name, args_dict
             q.put("END")
             sys.stdout = sys.__stdout__
 
-    Process(target=process_func, args=(processor_type, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
+    Process(target=process_func, args=(processor_type, graph, {producer_name: producer}, args_dict, user, q)).start()
     
     while True:
         output:dict = q.get()
