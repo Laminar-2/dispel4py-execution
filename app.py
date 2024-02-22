@@ -139,31 +139,34 @@ def run_workflow():
 
     config = configparser.ConfigParser()
     config.read('config.ini')
-    args_dict = None
+    args_dict = {}
 
     try:
         if process == 2:
-            args_dict = config['MULTI']
-            if ("num" in args_dict):
-                args_dict["num"] = int(args_dict["num"])
-            if ("iter" in args_dict):
-                args_dict["iter"] = int(args_dict["iter"])
-            if ("simple" in args_dict):
-                args_dict["simple"] = args_dict["simple"] == "True"
+            settings = config['MULTI']
+            if ("num" in settings):
+                args_dict["num"] = int(settings["num"])
+            if ("iter" in settings):
+                args_dict["iter"] = int(settings["iter"])
+            if ("simple" in settings):
+                args_dict["simple"] = settings["simple"] == "True"
         if process == 3:
-            args_dict = config['DYNAMIC']
-            if ("num" in args_dict):
-                args_dict["num"] = int(args_dict["num"])
-            if ("iter" in args_dict):
-                args_dict["iter"] = int(args_dict["iter"])
-            if ("simple" in args_dict):
-                args_dict["simple"] = args_dict["simple"] == "True"
+            settings = config['DYNAMIC']
+            if ("num" in settings):
+                args_dict["num"] = int(settings["num"])
+            if ("iter" in settings):
+                args_dict["iter"] = int(settings["iter"])
+            if ("simple" in settings):
+                args_dict["simple"] = settings["simple"] == "True"
+            args_dict["redis_ip"] = settings["redis_ip"]
+            args_dict["redis_port"] = settings["redis_port"]
             
     except:
         if process != 1:
             print("Couldn't read Settings from config file - using default None")
         args_dict = None
     
+
     return Response(stream_with_context(run_process(process, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
 
 def acquire_resources(resources: list[str], user: str):
