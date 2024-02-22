@@ -2,6 +2,7 @@ from dispel4py.workflow_graph import WorkflowGraph
 from dispel4py.new.simple_process import process_and_return as simple_process_return
 from dispel4py.new.simple_process import process as simple_process
 from dispel4py.new.multi_process import process as multi_process
+from dispel4py.new.processor import STATUS_TERMINATED
 from dispel4py.new.dynamic_redis import process as dyn_process
 #from dispel4py.new.dynamic_redis_v1 import process as dyn_process
 import codecs
@@ -22,42 +23,36 @@ from multiprocessing import Process, Lock, SimpleQueue
 
 def createConfigFile():
     config = configparser.ConfigParser()
-    process = ""
-    while process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
-        process = input("Process type [SIMPLE, MULTI, DYNAMIC]: ").upper()
-    config['EXECUTION'] = {"Process": process}
 
-    if process == "MULTI":
-        print("Arguments for MULTI configuration")
-        num = input("num: ")
-        iter = input("iter: ")
-        simple = ""
-        while simple not in ["y", "n"]:
-            simple = input("simple [y/n]: ").lower()
-        simple = simple == "y"
-        config["SETTINGS"] = {
-            num: num,
-            iter: iter,
-            simple: simple
-        }
+    print("Arguments for MULTI configuration")
+    num = input("num: ")
+    iter = input("iter: ")
+    simple = ""
+    while simple not in ["y", "n"]:
+        simple = input("simple [y/n]: ").lower()
+    simple = simple == "y"
+    config["MULTI"] = {
+        num: num,
+        iter: iter,
+        simple: simple
+    }
     
-    if process == "DYNAMIC":
-        print("Arguments for DYNAMIC configuration")
-        num = input("num: ")
-        iter = input("iter: ")
-        simple = ""
-        while simple not in ["y", "n"]:
-            simple = input("simple [y/n]: ").lower()
-        simple = simple == "y"
-        redis_ip = input("redis_ip: ")
-        redis_port = input("redis_port: ")
-        config["SETTINGS"] = {
-            num: num,
-            iter: iter,
-            simple: simple,
-            redis_ip: redis_ip,
-            redis_port: redis_port
-        }
+    print("Arguments for DYNAMIC configuration")
+    num = input("num: ")
+    iter = input("iter: ")
+    simple = ""
+    while simple not in ["y", "n"]:
+        simple = input("simple [y/n]: ").lower()
+    simple = simple == "y"
+    redis_ip = input("redis_ip: ")
+    redis_port = input("redis_port: ")
+    config["DYNAMIC"] = {
+        num: num,
+        iter: iter,
+        simple: simple,
+        redis_ip: redis_ip,
+        redis_port: redis_port
+    }
 
     with open("config.ini", "w") as configfile:
         print("Saving configuration details to config.ini")
@@ -116,6 +111,7 @@ def run_workflow():
     workflow_id = data["workflowId"]
     workflow = data["graph"]
     inputCode = data["inputCode"]
+    process = data["process"]
     resources = data["resources"]
     imports = data["imports"]
     user = data["user"]
@@ -136,10 +132,6 @@ def run_workflow():
 
     unpickled_workflow_code  = deserialize(workflow_code)
     unpickled_input_code  = deserialize(inputCode)
-    #unpickled_resources_code = deserialize(resources)
-
-    #make resources directory 
-    #deserialize_directory(unpickled_resources_code,"resources/")
 
     graph: WorkflowGraph = unpickled_workflow_code #Code execution 
     nodes = graph.get_contained_objects() #nodes in graph 
@@ -147,29 +139,32 @@ def run_workflow():
 
     config = configparser.ConfigParser()
     config.read('config.ini')
-    process = "SIMPLE"
     args_dict = None
+
     try:
-        process = config['EXECUTION']['Process']
+        if process == 2:
+            args_dict = config['MULTI']
+            if ("num" in args_dict):
+                args_dict["num"] = int(args_dict["num"])
+            if ("iter" in args_dict):
+                args_dict["iter"] = int(args_dict["iter"])
+            if ("simple" in args_dict):
+                args_dict["simple"] = args_dict["simple"] == "True"
+        if process == 3:
+            args_dict = config['DYNAMIC']
+            if ("num" in args_dict):
+                args_dict["num"] = int(args_dict["num"])
+            if ("iter" in args_dict):
+                args_dict["iter"] = int(args_dict["iter"])
+            if ("simple" in args_dict):
+                args_dict["simple"] = args_dict["simple"] == "True"
+            
     except:
-        print("Couldn't read Process from config file - using default SIMPLE")
-    try:
-        args_dict = config['SETTINGS']
-        if ("num" in args_dict):
-            args_dict["num"] = int(args_dict["num"])
-        if ("iter" in args_dict):
-            args_dict["iter"] = int(args_dict["iter"])
-        if ("simple" in args_dict):
-            args_dict["simple"] = args_dict["simple"] == "True"
-    except:
-        if process != "SIMPLE":
+        if process != 1:
             print("Couldn't read Settings from config file - using default None")
         args_dict = None
-    
-    if process not in ["SIMPLE", "MULTI", "DYNAMIC"]:
-        process = "SIMPLE"
 
-    process_fn = {"SIMPLE": simple_process_return, "MULTI": multi_process, "DYNAMIC": dyn_process}[process]
+    process_fn = {1: simple_process_return, 2: multi_process, 3: dyn_process}[process]
     
     return Response(stream_with_context(run_process(process_fn, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
 
@@ -185,7 +180,7 @@ def check_resources(resources: list[str], user: str):
             pass
         print("Found " + resource)
 
-def run_process(processor, graph, producer, producer_name, args_dict, resources, user):
+def run_process(processor_type, graph, producer, producer_name, args_dict, resources, user):
     # First find what resources we don't have
     required_resources = []
     for resource_request in acquire_resources(resources, user):
@@ -198,29 +193,43 @@ def run_process(processor, graph, producer, producer_name, args_dict, resources,
     check_resources(resources, user) # waits for resources to arrive
     print("Acquired resources")
 
-    for output in get_process_output(processor, graph, producer, producer_name, args_dict, user):
+    for output in get_process_output(processor_type, graph, producer, producer_name, args_dict, user):
         sys.__stdout__.write(output)
         sys.__stdout__.flush()
         yield output
 
-def get_process_output(processor, graph, producer, producer_name, args_dict, user):
+def get_process_output(processor_type, graph, producer, producer_name, args_dict, user):
     q = SimpleQueue()
 
-    def process_func(processor, graph, p, args_dict, user, q:SimpleQueue):
+    def process_func(processor_type, graph, p, args_dict, user, q:SimpleQueue):
         buffer = IOToQueue(q)
         pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
         os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
         try:
-            output = processor(graph, p, args_dict)
-            q.put({"result": output})
+            if processor_type == 1:
+                output = simple_process_return(graph, p, args_dict)
+                q.put({"result": output})
+            if processor_type == 2:
+                output = multi_process(graph, p, args_dict)
+                if output is not None:
+                    value = output.get()
+                    if value != STATUS_TERMINATED:
+                        q.put({"part-result": output})
+                    else:
+                        q.put({"result": []})
+                else:
+                    q.put({"result": None})
+            if processor_type == 3:
+                dyn_process(graph, p, args_dict)
+                q.put({"result": None})
         except Exception as e:
             q.put({"error": str(e)})
         finally:
             q.put("END")
             sys.stdout = sys.__stdout__
 
-    Process(target=process_func, args=(processor, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
+    Process(target=process_func, args=(processor_type, graph, {producer_name: producer}, args_dict, user, q), daemon=True).start()
     
     while True:
         output:dict = q.get()
