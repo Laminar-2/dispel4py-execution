@@ -144,20 +144,14 @@ def run_workflow():
     try:
         if process == 2:
             settings = config['MULTI']
-            if ("num" in settings):
-                args_dict["num"] = int(settings["num"])
-            if ("iter" in settings):
-                args_dict["iter"] = int(settings["iter"])
-            if ("simple" in settings):
-                args_dict["simple"] = settings["simple"] == "True"
+            args_dict["num"] = int(settings["num"])
+            args_dict["iter"] = int(settings["iter"])
+            args_dict["simple"] = settings["simple"] == "True"
         if process == 3:
             settings = config['DYNAMIC']
-            if ("num" in settings):
-                args_dict["num"] = int(settings["num"])
-            if ("iter" in settings):
-                args_dict["iter"] = int(settings["iter"])
-            if ("simple" in settings):
-                args_dict["simple"] = settings["simple"] == "True"
+            args_dict["num"] = int(settings["num"])
+            args_dict["iter"] = int(settings["iter"])
+            args_dict["simple"] = settings["simple"] == "True"
             args_dict["redis_ip"] = settings["redis_ip"]
             args_dict["redis_port"] = settings["redis_port"]
             
@@ -165,7 +159,7 @@ def run_workflow():
         if process != 1:
             print("Couldn't read Settings from config file - using default None")
         args_dict = None
-    
+    print(args_dict)
 
     return Response(stream_with_context(run_process(process, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
 
