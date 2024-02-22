@@ -32,9 +32,9 @@ def createConfigFile():
         simple = input("simple [y/n]: ").lower()
     simple = simple == "y"
     config["MULTI"] = {
-        num: num,
-        iter: iter,
-        simple: simple
+        "num": num,
+        "iter": iter,
+        "simple": simple
     }
     
     print("Arguments for DYNAMIC configuration")
@@ -47,11 +47,11 @@ def createConfigFile():
     redis_ip = input("redis_ip: ")
     redis_port = input("redis_port: ")
     config["DYNAMIC"] = {
-        num: num,
-        iter: iter,
-        simple: simple,
-        redis_ip: redis_ip,
-        redis_port: redis_port
+        "num": num,
+        "iter": iter,
+        "simple": simple,
+        "redis_ip": redis_ip,
+        "redis_port": redis_port
     }
 
     with open("config.ini", "w") as configfile:
