@@ -159,9 +159,8 @@ def run_workflow():
         if process != 1:
             print("Couldn't read Settings from config file - using default None")
         args_dict = None
-    print(args_dict)
 
-    return Response(stream_with_context(run_process(process, graph, unpickled_input_code, producer, args_dict, resources, user)), mimetype="application/json")
+    return Response(stream_with_context(run_process(process, graph, unpickled_input_code, producer, edict(args_dict), resources, user)), mimetype="application/json")
 
 def acquire_resources(resources: list[str], user: str):
     for resource in resources:
@@ -201,9 +200,10 @@ def get_process_output(processor_type, graph, producer, producer_name, args_dict
         pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
         os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
+        
         try:
             if processor_type == 1:
-                output = simple_process_return(graph, p, args_dict)
+                output = simple_process_return(graph, p)
                 q.put({"result": output})
             if processor_type == 2:
                 output = multi_process(graph, p, args_dict)
