@@ -2,6 +2,19 @@
 
 The following instructions will allow you to run the Flask application which executes dispel4py workflows 
 
+# Docker
+Clone repository 
+```
+git clone https://github.com/dispel4pyserverless/dispel4py-execution.git
+```
+Then enter directory by
+```
+cd dispel4py-execution 
+```
+Compose the file to run the execution engine and redis server
+```
+docker compose up
+```
 
 Clone repository 
 ```
