@@ -1,0 +1,20 @@
+services:
+  execuction:
+    build:
+      context: .
+      args:
+        REDIS_IP: redis
+        REDIS_PORT: 6379
+        MULTI_ITERATIONS: 10
+        MULTI_NUM: 10
+        MULTI_SIMPLE: False
+        DYNAMIC_ITER: 10
+        DYNAMIC_NUM: 10
+        DYNAMIC_SIMPLE: False
+    ports:
+      - ${LAMINAR_EXECUTION_PORT:-5000}:5000
+    
+  
+  redis:
+    image: redis
+    
