@@ -258,7 +258,7 @@ def get_first(nodes:list):
     #return id_dict[min_id]  
 
 def main():
-    serve(app, host='127.0.0.1', port='5000')
+    serve(app, host=('127.0.0.1' if os.getenv('EXECUTION_HOST') is None else os.getenv('EXECUTION_HOST')), port='5000')
 
 if __name__ == '__main__':
     main()
