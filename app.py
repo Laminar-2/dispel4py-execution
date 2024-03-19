@@ -9,6 +9,8 @@ import codecs
 #import shutil
 import cloudpickle as pickle 
 from flask import Flask, request, Response, stream_with_context, jsonify, send_from_directory
+from flask_cors import CORS
+
 from easydict import EasyDict as edict
 from io import StringIO 
 from waitress import serve
@@ -90,6 +92,8 @@ def deserialize(data):
     return pickle.loads(codecs.decode(data.encode(), "base64"))
 
 app = Flask(__name__)
+CORS(app)
+
 @app.route('/resource', methods=['PUT'])
 def acquire_resource():
     print("Acquiring resources")
@@ -107,6 +111,8 @@ def run_workflow():
     print("Starting workflow")
     #todo check if request is post and error handle each param 
     data = request.get_json()
+    
+    print(data)
 
     workflow_id = data["workflowId"]
     workflow = data["graph"]
