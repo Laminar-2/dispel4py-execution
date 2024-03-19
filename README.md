@@ -15,6 +15,7 @@ Compose the file to run the execution engine and redis server
 ```
 docker compose up
 ```
+# Without Docker
 
 Clone repository 
 ```
