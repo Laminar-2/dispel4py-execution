@@ -184,23 +184,22 @@ def run_process(processor_type, graph, producer, producer_name, args_dict, resou
     
     # Then wait for all resources to arrive
     print("Waiting for resources")
-    check_resources(resources, user) # waits for resources to arrive
-    print("Acquired resources")
 
-    for output in get_process_output(processor_type, graph, producer, producer_name, args_dict, user):
+    for output in get_process_output(processor_type, graph, producer, producer_name, args_dict, resources, user):
         sys.__stdout__.write(output)
         sys.__stdout__.flush()
         yield output
 
-def get_process_output(processor_type, graph, producer, producer_name, args_dict, user):
+def get_process_output(processor_type, graph, producer, producer_name, args_dict, resources, user):
     q = SimpleQueue()
 
     def process_func(processor_type, graph, p, args_dict, user, q:SimpleQueue):
+        check_resources(resources, user) # waits for resources to arrive
         buffer = IOToQueue(q)
         pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
         os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
-
+        
         try:
             if processor_type == 1:
                 output = simple_process_return(graph, p)
