@@ -1,6 +1,7 @@
 Flask == 3.0.1
-cloudpickle == 2.2.1
+cloudpickle == 3.0.0
 easydict == 1.10
 pigar == 2.0.5
 waitress == 3.0.0
 stream-d4py
+flask-cors == 4.0.0
