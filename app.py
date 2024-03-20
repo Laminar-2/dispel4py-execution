@@ -141,7 +141,7 @@ def run_workflow():
 
     graph: WorkflowGraph = unpickled_workflow_code #Code execution 
     nodes = graph.get_contained_objects() #nodes in graph 
-    producer = get_first(nodes) # Get first PE in graph
+    producer = get_first(graph) # Get first PE in graph
 
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -205,7 +205,7 @@ def get_process_output(processor_type, graph, producer, producer_name, args_dict
         pathlib.Path(os.path.join("cache", user)).mkdir(parents=True, exist_ok=True)
         os.chdir(os.path.join("cache", user))
         sys.stdout = buffer
-        
+        print(p)
         try:
             if processor_type == 1:
                 output = simple_process_return(graph, p)
@@ -249,11 +249,18 @@ class IOToQueue(StringIO):
     def read(self, __size: int | None = ...) -> str:
         return self.queue.get()
 
-def get_first(nodes:list):
+def get_first(graph: WorkflowGraph):
     id_dict = {}
     
-    for x in nodes:
-        if len(x.inputconnections) == 0:
+    for x in graph.get_contained_objects():
+        correct = True
+        for start, end in graph.graph.edges:
+            start = start.get_contained_object()
+            end = end.get_contained_object()
+            if end == x:
+                correct = False
+        if correct:
+            print("Producer - " + str(x))
             return x
         #id = int(re.search(r'\d+', getattr(x,'id')).group())  
         #id_dict[id] = x  
