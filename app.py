@@ -65,8 +65,9 @@ if not os.path.exists('./config.ini'):
     createConfigFile()
 
 def install(package):
-    #todo: check if installed before install 
-    subprocess.call(['pip', 'install', package])
+    #todo: check if installed before install
+    if package not in sys.modules: 
+        subprocess.call(['pip', 'install', package])
 
 def deserialize_directory(data,path):
 
@@ -141,7 +142,7 @@ def run_workflow():
 
     graph: WorkflowGraph = unpickled_workflow_code #Code execution 
     nodes = graph.get_contained_objects() #nodes in graph 
-    producer = get_first(graph) # Get first PE in graph
+    producer = get_first(graph).name # Get first PE in graph
 
     config = configparser.ConfigParser()
     config.read('config.ini')
